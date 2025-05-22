@@ -1,13 +1,25 @@
 import sqlite3
 import pandas as pd
-
+from pathlib import Path
 
 # Путь к Excel-файлу
-xlsx_file = "14_folder_report.xlsx"
+xlsx_file_path = Path()
+file_exist = False
+while not file_exist:
+    if xlsx_file_path.is_file():
+        file_exist = True
+    else:
+        xlsx_file_name = input('Input Excel file name (exclude .xlsx) :\n') + '.xlsx'
+        xlsx_file_path = Path(xlsx_file_name)
 
 # Подключение к SQLite
-conn = sqlite3.connect("14_folder_ksk.db")
+sql_name = input('Output SQLite file name (exclude .db):\n')
+sql_name = sql_name or f'{xlsx_file_name}'
+sql_name += '.db'
+conn = sqlite3.connect(sql_name)
 cursor = conn.cursor()
+
+print('Creating database. It can take a while. Do not close console')
 
 # Создание таблиц
 cursor.execute('''
@@ -42,7 +54,7 @@ CREATE TABLE IF NOT EXISTS DenyEntries (
 ''')
 
 # Открываем Excel-книгу
-xlsx = pd.ExcelFile(xlsx_file)
+xlsx = pd.ExcelFile(xlsx_file_name)
 
 # Обработка всех листов
 for sheet_name in xlsx.sheet_names:
@@ -83,3 +95,5 @@ for sheet_name in xlsx.sheet_names:
 # Сохраняем и закрываем
 conn.commit()
 conn.close()
+
+input(f'\n\n\nDatabase successfully created in script directory with filename - "{sql_name}"\n\nPress any key to exit...')
