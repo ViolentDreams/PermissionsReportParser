@@ -11,6 +11,7 @@ sql_name = (input('Output SQLite file name (exclude .db)\nor leave empty for aut
 conn = sqlite3.connect(sql_name)
 cursor = conn.cursor()
 
+# Держим в курсе
 print('Creating database. It can take a while. Do not close console')
 
 # Создание таблиц
@@ -45,7 +46,7 @@ CREATE TABLE IF NOT EXISTS DenyEntries (
 )
 ''')
 
-# Открываем Excel-книгу
+# Открываем Excel
 xlsx = pd.ExcelFile(xlsx_file_path)
 
 # Обработка всех листов
@@ -88,5 +89,6 @@ for sheet_name in xlsx.sheet_names:
 conn.commit()
 conn.close()
 
+# Держим в курсе
 input(
     f'\n\n\nDatabase successfully created in script directory with filename - "{sql_name}"\n\nPress any key to exit...')
