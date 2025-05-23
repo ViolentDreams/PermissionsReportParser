@@ -55,7 +55,7 @@ cursor.execute('''
 ''')
 
 cursor.execute('''
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_allow_unique
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_deny_unique
     ON DenyEntries (path_id, account, inherited_permission)
 ''')
 
