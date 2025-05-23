@@ -1,3 +1,4 @@
+import os.path
 import sqlite3
 import pandas as pd
 from pathlib import Path
@@ -18,7 +19,9 @@ print('Creating database. It can take a while. Do not close console')
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS Paths (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    path TEXT UNIQUE
+    path TEXT UNIQUE,
+    parent_id INTEGER,
+    FOREIGN KEY(parent_id) REFERENCES Paths(id)
 )
 ''')
 
@@ -46,6 +49,38 @@ CREATE TABLE IF NOT EXISTS DenyEntries (
 )
 ''')
 
+# Кэш для путей чтобы не делать повторные запросы
+path_cache = {}
+
+
+def get_or_create_path_id(given_path):
+    # Нормализация
+    norm_path = os.path.normpath(given_path.strip())
+
+    if norm_path in path_cache:
+        return path_cache[norm_path]
+
+    # Определяем родительский путь
+    parent_path = os.path.dirname(norm_path)
+
+    # Условие остановки рекурсии: если это корень (например, 'E:\')
+    if parent_path == norm_path:
+        parent_id = None
+    else:
+        parent_id = get_or_create_path_id(parent_path)
+
+    # Добавляем текущий путь
+    cursor.execute('INSERT OR IGNORE INTO Paths (path, parent_id) VALUES (?, ?)', (norm_path, parent_id))
+    cursor.execute('SELECT id FROM Paths WHERE path = ?', (norm_path,))
+    result = cursor.fetchone()
+    if result is None:
+        raise ValueError(f"Не удалось найти ID для пути: {norm_path}")
+
+    path_id = result[0]
+    path_cache[norm_path] = path_id
+    return path_id
+
+
 # Открываем Excel
 xlsx = pd.ExcelFile(xlsx_file_path)
 
@@ -62,6 +97,7 @@ for sheet_name in xlsx.sheet_names:
 
     for _, row in df.iterrows():
         path = row['path']
+        path_id = get_or_create_path_id(path)
         account = row['account']
         access_type = row['access_type'].strip().lower()
         inherited = row['inherited']
