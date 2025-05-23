@@ -95,6 +95,8 @@ def get_or_create_path_id(given_path):
 xlsx = pd.ExcelFile(xlsx_file_path)
 
 # Обработка всех листов
+allow_keys_in_xlsx = set()
+deny_keys_in_xlsx = set()
 for sheet_name in xlsx.sheet_names:
     df = xlsx.parse(sheet_name)
 
@@ -120,7 +122,10 @@ for sheet_name in xlsx.sheet_names:
         path_id = cursor.fetchone()[0]
 
         # Добавляем запись в нужную таблицу
+        key_tuple = (path_id, account.strip(), inherited)
+
         if access_type == 'allow':
+            allow_keys_in_xlsx.add(key_tuple)
             cursor.execute('''
                 INSERT INTO AllowEntries (path_id, account, permissions, inherited_permission, write_permission)
                 VALUES (?, ?, ?, ?, ?)
@@ -129,15 +134,31 @@ for sheet_name in xlsx.sheet_names:
                     permissions = excluded.permissions,
                     write_permission = excluded.write_permission
             ''', (path_id, account, permissions, inherited, write_perm))
+
         elif access_type == 'deny':
+            deny_keys_in_xlsx.add(key_tuple)
             cursor.execute('''
                 INSERT INTO DenyEntries (path_id, account, permissions, inherited_permission, write_permission)
                 VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT (path_id, account, inherited_permission)
                 DO UPDATE SET
-                    permissions = excluded.permission,
-                    write_permission = exclude.write_permission
+                    permissions = excluded.permissions,
+                    write_permission = excluded.write_permission
             ''', (path_id, account, permissions, inherited, write_perm))
+
+# Удаляем лишние записи из AllowEntries
+cursor.execute('SELECT path_id, account, inherited_permission FROM AllowEntries')
+existing_allow_keys = set(cursor.fetchall())
+obsolete_allows = existing_allow_keys - allow_keys_in_xlsx
+for key in obsolete_allows:
+    cursor.execute('DELETE FROM AllowEntries WHERE path_id = ? AND account = ? AND inherited_permission = ?', key)
+
+# Удаляем лишние записи из DenyEntries
+cursor.execute('SELECT path_id, account, inherited_permission FROM DenyEntries')
+existing_deny_keys = set(cursor.fetchall())
+obsolete_denies = existing_deny_keys - deny_keys_in_xlsx
+for key in obsolete_denies:
+    cursor.execute('DELETE FROM DenyEntries WHERE path_id = ? AND account = ? AND inherited_permission = ?', key)
 
 # Сохраняем и закрываем
 conn.commit()
