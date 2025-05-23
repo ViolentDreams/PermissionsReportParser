@@ -49,6 +49,16 @@ CREATE TABLE IF NOT EXISTS DenyEntries (
 )
 ''')
 
+cursor.execute('''
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_allow_unique
+    ON AllowEntries (path_id, account, inherited_permission)
+''')
+
+cursor.execute('''
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_allow_unique
+    ON DenyEntries (path_id, account, inherited_permission)
+''')
+
 # Кэш для путей чтобы не делать повторные запросы
 path_cache = {}
 
@@ -114,11 +124,19 @@ for sheet_name in xlsx.sheet_names:
             cursor.execute('''
                 INSERT INTO AllowEntries (path_id, account, permissions, inherited_permission, write_permission)
                 VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (path_id, account, inherited_permission)
+                DO UPDATE SET
+                    permissions = excluded.permissions,
+                    write_permission = excluded.write_permission
             ''', (path_id, account, permissions, inherited, write_perm))
         elif access_type == 'deny':
             cursor.execute('''
                 INSERT INTO DenyEntries (path_id, account, permissions, inherited_permission, write_permission)
                 VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (path_id, account, inherited_permission)
+                DO UPDATE SET
+                    permissions = excluded.permission,
+                    write_permission = exclude.write_permission
             ''', (path_id, account, permissions, inherited, write_perm))
 
 # Сохраняем и закрываем
