@@ -60,9 +60,11 @@ cursor.execute('''CREATE UNIQUE INDEX IF NOT EXISTS idx_deny_unique
 path_cache = {}
 allow_keys_in_xml = set()
 deny_keys_in_xml = set()
+paths_in_xml = set()
 
 def get_or_create_path_id(path: str):
     norm_path = os.path.normpath(path)
+    paths_in_xml.add(norm_path)
     if norm_path in path_cache:
         return path_cache[norm_path]
     parent_path = os.path.dirname(norm_path)
@@ -140,6 +142,13 @@ existing_deny_keys = set(cursor.fetchall())
 obsolete_denies = existing_deny_keys - deny_keys_in_xml
 for key in obsolete_denies:
     cursor.execute('DELETE FROM DenyEntries WHERE path_id = ? AND account = ? AND inherited_permission = ?', key)
+
+# Удаление устаревших путей, не фигурирующих в текущем XML
+cursor.execute('SELECT path FROM Paths')
+all_paths_in_db = set(row[0] for row in cursor.fetchall())
+obsolete_paths = all_paths_in_db - paths_in_xml
+for path in obsolete_paths:
+    cursor.execute('DELETE FROM Paths WHERE path = ?', (path,))
 
 conn.commit()
 conn.close()
