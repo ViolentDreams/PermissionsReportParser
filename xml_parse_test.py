@@ -17,7 +17,8 @@ def parse_folder_node(node, parent_path=""):
 
     # Права на файлы
     for fperm in node.findall('./FilePermissions/FilePermission'):
-        fname = fperm.findtext('Name')
+        fname_raw = fperm.findtext('Name')
+        fname = os.path.join(folder_name, fname_raw)
         print(f"  Файл: {fname}")
         for diff in fperm.findall('./DiffPerms/DiffPerm'):
             account = diff.findtext('AccountName')
