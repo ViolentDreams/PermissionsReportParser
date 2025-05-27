@@ -1,7 +1,9 @@
 import xml.etree.ElementTree as ET
+import os
 
-def parse_folder_node(node):
-    folder_name = node.findtext('Name')
+def parse_folder_node(node, parent_path=""):
+    folder_name_raw = node.findtext('Name')
+    folder_name = os.path.join(parent_path, folder_name_raw) if parent_path else folder_name_raw
     folder_inherited = node.findtext('IsInherited') == 'true'
 
     print(f"Папка: {folder_name}, Наследование: {folder_inherited}")
@@ -25,12 +27,14 @@ def parse_folder_node(node):
 
     # Рекурсивный вызов
     for subnode in node.findall('./FolderNodes/FolderNode'):
-        parse_folder_node(subnode)
+        parse_folder_node(subnode, folder_name)
 
 # Парсинг XML-файла
 xml_file = 'PermissionsReport.xml'
 tree = ET.parse(xml_file)
 root = tree.getroot()
 
-for top_folder in root.find('FolderNodes').findall('FolderNode'):
-    parse_folder_node(top_folder)
+folder_nodes = root.find('FolderNodes')
+if folder_nodes is not None:
+    for top_folder in folder_nodes.findall('FolderNode'):
+        parse_folder_node(top_folder)
